@@ -1,0 +1,30 @@
+{
+	"name": "thunderclap",
+	"version": "1.0.0",
+	"description": "Basic setup for a typescript project",
+	"homepage": "https://github.com/KieranGliver/Thunderclap#readme",
+	"bugs": {
+		"url": "https://github.com/KieranGliver/Thunderclap/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/KieranGliver/Thunderclap.git"
+	},
+	"license": "ISC",
+	"author": "",
+	"type": "commonjs",
+	"main": "index.js",
+	"scripts": {
+		"build": "tsc",
+		"test": "vitest run",
+		"check": "npx @biomejs/biome check .",
+		"fix": "npx @biomejs/biome check --write ."
+	},
+	"dependencies": {
+		"typescript": "^5.8.2"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"vitest": "^3.1.1"
+	}
+}
