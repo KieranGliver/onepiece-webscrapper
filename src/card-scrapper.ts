@@ -53,89 +53,96 @@ async function fetchCardData(
 	return results;
 }
 
-function parseCardList(cardList: HTMLElement): Card[] {
-	const ret: Card[] = [];
+function parseCard(c: HTMLElement): Card {
+	const cardObj = new Card();
 
-	const cards = cardList.querySelectorAll('.modalCol');
+	cardObj.id = c.getAttribute('id') || '';
 
-	for (const c of cards) {
-		const cardObj = new Card();
+	const spans = c.querySelectorAll('span');
+	const spanData = [...spans]
+		.slice(1, spans.length - 2)
+		.map((span) => span.text.trim());
+	cardObj.rarity = spanData[0];
+	cardObj.type = spanData[1];
 
-		cardObj.id = c.getAttribute('id') || '';
+	const getText = (cls: string): string => {
+		const el = c.querySelector(`div.${cls}`);
+		if (!el) return '';
 
-		const spans = c.querySelectorAll('span');
-		const spanData = [...spans]
-			.slice(1, spans.length - 2)
-			.map((span) => span.text.trim());
-		cardObj.rarity = spanData[0];
-		cardObj.type = spanData[1];
+		// Find first child node that is a text node (type === 3)
+		const textNode = el.childNodes.find((n) => n.nodeType === 3);
+		return decode(textNode?.rawText.trim() || '');
+	};
 
-		const getText = (cls: string): string => {
-			const el = c.querySelector(`div.${cls}`);
-			if (!el) return '';
+	cardObj.name = getText('cardName');
+	cardObj.cost = Number.parseInt(getText('cost'), 10) || 0;
+	cardObj.attribute = getText('attribute i');
+	cardObj.power = Number.parseInt(getText('power'), 10) || 0;
+	cardObj.counter = Number.parseInt(getText('counter'), 10) || 0;
+	cardObj.colour = getText('color');
+	cardObj.feature = getText('feature');
+	cardObj.set = getText('getInfo');
+	cardObj.text = getText('text');
 
-			// Find first child node that is a text node (type === 3)
-			const textNode = el.childNodes.find((n) => n.nodeType === 3);
-			return decode(textNode?.rawText.trim() || '');
-		};
+	console.log(`Parsed card: ${cardObj.id}`);
 
-		cardObj.name = getText('cardName');
-		cardObj.cost = Number.parseInt(getText('cost'), 10) || 0;
-		cardObj.attribute = getText('attribute i');
-		cardObj.power = Number.parseInt(getText('power'), 10) || 0;
-		cardObj.counter = Number.parseInt(getText('counter'), 10) || 0;
-		cardObj.colour = getText('color');
-		cardObj.feature = getText('feature');
-		cardObj.set = getText('getInfo');
-		cardObj.text = getText('text');
-
-		ret.push(cardObj);
-
-		console.log(`Parsed card: ${cardObj.id}`);
-	}
-
-	return ret;
+	return cardObj;
 }
 
 export async function scrapCards(): Promise<Card[]> {
-	const cards: Card[] = [];
+	const allCards: Card[] = [];
 
 	// Fetch and parse card STCs
 	const stcHtmlLists = await fetchCardData(seriesPrefix.stc, 21);
 	for (const listHtml of stcHtmlLists) {
-		const cardList = parse(listHtml);
-		cards.push(...parseCardList(cardList));
+		const cardListRoot = parse(listHtml);
+		const cards = cardListRoot.querySelectorAll('.modalCol');
+		for (const card of cards) {
+			allCards.push(parseCard(card));
+		}
 	}
 
 	// Fetch and parse card sets
 	const setHtmlList = await fetchCardData(seriesPrefix.set, 10);
 	for (const listHtml of setHtmlList) {
-		const cardList = parse(listHtml);
-		cards.push(...parseCardList(cardList));
+		const cardListRoot = parse(listHtml);
+		const cards = cardListRoot.querySelectorAll('.modalCol');
+		for (const card of cards) {
+			allCards.push(parseCard(card));
+		}
 	}
 
 	// Fetch and parse card EB
 	const ebHtmlList = await fetchCardData(seriesPrefix.eb, 1);
 	for (const listHtml of ebHtmlList) {
-		const cardList = parse(listHtml);
-		cards.push(...parseCardList(cardList));
+		const cardListRoot = parse(listHtml);
+		const cards = cardListRoot.querySelectorAll('.modalCol');
+		for (const card of cards) {
+			allCards.push(parseCard(card));
+		}
 	}
 
 	// Fetch and parse card PRB
 	const prbHtmlList = await fetchCardData(seriesPrefix.prb, 1);
 	for (const listHtml of prbHtmlList) {
-		const cardList = parse(listHtml);
-		cards.push(...parseCardList(cardList));
+		const cardListRoot = parse(listHtml);
+		const cards = cardListRoot.querySelectorAll('.modalCol');
+		for (const card of cards) {
+			allCards.push(parseCard(card));
+		}
 	}
 
 	// Fetch and parse card PC
 	const pcHtmlList = await fetchCardData(seriesPrefix.pc, 1);
 	for (const listHtml of pcHtmlList) {
-		const cardList = parse(listHtml);
-		cards.push(...parseCardList(cardList));
+		const cardListRoot = parse(listHtml);
+		const cards = cardListRoot.querySelectorAll('.modalCol');
+		for (const card of cards) {
+			allCards.push(parseCard(card));
+		}
 	}
 
-	return cards;
+	return allCards;
 }
 
 export async function uploadCards(cards: Card[]) {
