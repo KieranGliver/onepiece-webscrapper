@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": ["coverage/", "dist/", "node_modules/"]
+		"ignore": ["coverage/", "dist/", "node_modules/", "drizzle.config.ts"]
 	},
 	"formatter": {
 		"enabled": true,
