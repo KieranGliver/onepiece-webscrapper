@@ -5,7 +5,7 @@ import { type HTMLElement, parse } from 'node-html-parser';
 import { db } from './db/connection';
 import { cardsTable } from './db/schema';
 
-enum seriesPrefix {
+export enum seriesPrefix {
 	stc = '5690',
 	set = '5691',
 	eb = '5692',
@@ -31,7 +31,7 @@ export class Card {
 	}
 }
 
-async function fetchCardData(
+export async function fetchCardData(
 	seriesPrefix: seriesPrefix,
 	range: number,
 ): Promise<string[]> {
@@ -54,7 +54,7 @@ async function fetchCardData(
 	return results;
 }
 
-function parseCard(c: HTMLElement): Card {
+export function parseCard(c: HTMLElement): Card {
 	const cardObj = new Card();
 
 	cardObj.id = c.getAttribute('id') || '';
