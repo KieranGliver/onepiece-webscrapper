@@ -21,6 +21,8 @@
 		"fix": "npx @biomejs/biome check --write ."
 	},
 	"dependencies": {
+		"entities": "^6.0.0",
+		"node-html-parser": "^7.0.1",
 		"typescript": "^5.8.2"
 	},
 	"devDependencies": {
