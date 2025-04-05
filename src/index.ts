@@ -2,7 +2,6 @@ import { decode } from 'entities';
 import { type HTMLElement, parse } from 'node-html-parser';
 
 class Card {
-	frequency = 0;
 	id = '';
 	rarity = '';
 	type = '';
