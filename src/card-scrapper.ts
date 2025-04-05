@@ -1,9 +1,16 @@
 import { eq } from 'drizzle-orm';
 import { decode } from 'entities';
+import fetch from 'node-fetch';
 import { type HTMLElement, parse } from 'node-html-parser';
 import { db } from './db/connection';
 import { cardsTable } from './db/schema';
-
+enum seriesPrefix {
+	stc = '5690',
+	set = '5691',
+	eb = '5692',
+	prb = '5693',
+	pc = '5699',
+}
 export class Card {
 	id = '';
 	rarity = '';
@@ -23,26 +30,33 @@ export class Card {
 	}
 }
 
-async function getCardSet(set: number): Promise<string> {
-	if (set < 1 || set > 10) {
-		throw new Error('Set number must be between 1 and 10');
+async function fetchCardData(
+	seriesPrefix: seriesPrefix,
+	range: number,
+): Promise<string[]> {
+	const results: string[] = [];
+
+	for (let i = 1; i <= range; i++) {
+		const paddedNumber = i < 10 ? `0${i}` : `${i}`;
+		const url = `https://en.onepiece-cardgame.com/cardlist/?series=${seriesPrefix}${paddedNumber}`;
+		console.log(`Fetching card list for ${seriesPrefix}${paddedNumber}`);
+
+		const res = await fetch(url);
+		if (!res.ok) {
+			throw new Error(
+				`HTTP error fetching ${seriesPrefix}${paddedNumber} status: ${res.status}`,
+			);
+		}
+		results.push(await res.text());
 	}
 
-	// pad number with leading zero if less than 10
-	const setStr = set < 10 ? `0${set}` : `${set}`;
-
-	const url = `https://en.onepiece-cardgame.com/cardlist/?series=5691${setStr}`;
-	const res = await fetch(url);
-	if (!res.ok) {
-		throw new Error(`HTTP error! status: ${res.status}`);
-	}
-	return await res.text();
+	return results;
 }
 
-function parseCardRoot(cardRoot: HTMLElement): Card[] {
+function parseCardList(cardList: HTMLElement): Card[] {
 	const ret: Card[] = [];
 
-	const cards = cardRoot.querySelectorAll('.modalCol');
+	const cards = cardList.querySelectorAll('.modalCol');
 
 	for (const c of cards) {
 		const cardObj = new Card();
@@ -86,17 +100,39 @@ function parseCardRoot(cardRoot: HTMLElement): Card[] {
 export async function scrapCards(): Promise<Card[]> {
 	const cards: Card[] = [];
 
-	for (let i = 1; i <= 10; i++) {
-		console.log(`Fetching card list for set ${i}`);
-		let cardHtml: string;
-		try {
-			cardHtml = await getCardSet(i);
-		} catch (error) {
-			console.error('Error fetching card list:', error);
-			return [];
-		}
-		const cardRoot = parse(cardHtml);
-		cards.push(...parseCardRoot(cardRoot));
+	// Fetch and parse card STCs
+	const stcHtmlLists = await fetchCardData(seriesPrefix.stc, 21);
+	for (const listHtml of stcHtmlLists) {
+		const cardList = parse(listHtml);
+		cards.push(...parseCardList(cardList));
+	}
+
+	// Fetch and parse card sets
+	const setHtmlList = await fetchCardData(seriesPrefix.set, 10);
+	for (const listHtml of setHtmlList) {
+		const cardList = parse(listHtml);
+		cards.push(...parseCardList(cardList));
+	}
+
+	// Fetch and parse card EB
+	const ebHtmlList = await fetchCardData(seriesPrefix.eb, 1);
+	for (const listHtml of ebHtmlList) {
+		const cardList = parse(listHtml);
+		cards.push(...parseCardList(cardList));
+	}
+
+	// Fetch and parse card PRB
+	const prbHtmlList = await fetchCardData(seriesPrefix.prb, 1);
+	for (const listHtml of prbHtmlList) {
+		const cardList = parse(listHtml);
+		cards.push(...parseCardList(cardList));
+	}
+
+	// Fetch and parse card PC
+	const pcHtmlList = await fetchCardData(seriesPrefix.pc, 1);
+	for (const listHtml of pcHtmlList) {
+		const cardList = parse(listHtml);
+		cards.push(...parseCardList(cardList));
 	}
 
 	return cards;

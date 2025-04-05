@@ -27,6 +27,7 @@
 		"dotenv": "^16.4.7",
 		"drizzle-orm": "^0.41.0",
 		"entities": "^6.0.0",
+		"node-fetch": "^3.3.2",
 		"node-html-parser": "^7.0.1",
 		"typescript": "^5.8.2"
 	},
