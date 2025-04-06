@@ -1,78 +1,81 @@
 import { eq } from 'drizzle-orm';
-import { decode } from 'entities';
-import fetch from 'node-fetch';
 import { type HTMLElement, parse } from 'node-html-parser';
 import { db } from './db/connection';
 import { cardsTable } from './db/schema';
-
-export enum seriesPrefix {
-	stc = '5690',
-	set = '5691',
-	eb = '5692',
-	prb = '5693',
-	pc = '5699',
-}
-export class Card {
-	id = '';
-	rarity = '';
-	type = '';
-	name = '';
-	cost = -1;
-	attribute = '';
-	power = -1;
-	counter = -1;
-	colour = '';
-	feature = '';
-	set = '';
-	text = '';
-
-	toString(): string {
-		return `Card { id: ${this.id}, rarity: ${this.rarity}, type: ${this.type}, name: ${this.name}, cost: ${this.cost}, attribute: ${this.attribute}, power: ${this.power}, counter: ${this.counter}, colour: ${this.colour}, feature: ${this.feature}, set: ${this.set} }`;
-	}
-}
+import { type Card, seriesPrefix } from './types';
+import { fetchText } from './utils';
 
 export async function fetchCardData(
-	seriesPrefix: seriesPrefix,
+	prefix: seriesPrefix,
 	range: number,
+	fetchFunc: (url: string) => Promise<string> = fetchText,
 ): Promise<string[]> {
 	const results: string[] = [];
 
-	for (let i = 1; i <= range; i++) {
-		const paddedNumber = i < 10 ? `0${i}` : `${i}`;
-		const url = `https://en.onepiece-cardgame.com/cardlist/?series=${seriesPrefix}${paddedNumber}`;
-		console.log(`Fetching card list for ${seriesPrefix}${paddedNumber}`);
+	// Validate the range depending on the prefix given
+	if (range < 1) {
+		console.error('Range must be greater than 0');
+		return results;
+	}
+	if (prefix === seriesPrefix.stc) {
+		if (range > 21) {
+			console.error('Range must be less than 21 for stc');
+			return results;
+		}
+	} else if (prefix === seriesPrefix.set) {
+		if (range > 21) {
+			console.error('Range must be less than 10 for set');
+			return results;
+		}
+	} else if (range > 1) {
+		console.error('Range must be 1 for eb, prb and pc');
+		return results;
+	}
 
-		const res = await fetch(url);
-		if (!res.ok) {
-			throw new Error(
-				`HTTP error fetching ${seriesPrefix}${paddedNumber} status: ${res.status}`,
+	for (let i = 1; i <= range; i++) {
+		// Number must be 2 digits
+		const paddedNumber = i < 10 ? `0${i}` : `${i}`;
+		const url = `https://en.onepiece-cardgame.com/cardlist/?series=${prefix}${paddedNumber}`;
+
+		console.log(`Fetching card list for ${prefix}${paddedNumber}`);
+
+		try {
+			const cardListHtml = await fetchFunc(url);
+			results.push(cardListHtml);
+		} catch (error) {
+			console.error(
+				`Error fetching card list for ${prefix}${paddedNumber}:`,
+				error,
 			);
 		}
-		results.push(await res.text());
 	}
 
 	return results;
 }
 
 export function parseCard(c: HTMLElement): Card {
-	const cardObj = new Card();
+	const cardObj: Card = {} as Card;
 
 	cardObj.id = c.getAttribute('id') || '';
 
+	// Parse the card rarity and type from the spans
 	const spans = c.querySelectorAll('span');
 	const spanData = [...spans]
 		.slice(1, spans.length - 2)
 		.map((span) => span.text.trim());
+
 	cardObj.rarity = spanData[0];
 	cardObj.type = spanData[1];
 
+	// Helper function to get text from a specific class
 	const getText = (cls: string): string => {
 		const el = c.querySelector(`div.${cls}`);
+
 		if (!el) return '';
 
 		// Find first child node that is a text node (type === 3)
 		const textNode = el.childNodes.find((n) => n.nodeType === 3);
-		return decode(textNode?.rawText.trim() || '');
+		return textNode?.rawText.trim() || '';
 	};
 
 	cardObj.name = getText('cardName');
@@ -90,57 +93,50 @@ export function parseCard(c: HTMLElement): Card {
 	return cardObj;
 }
 
+export function parseCardList(cardListHtml: string): Card[] {
+	const ret: Card[] = [];
+
+	const htmlRoot = parse(cardListHtml);
+	const cardListRoot = htmlRoot.querySelectorAll('.modalCol');
+	for (const cardRoot of cardListRoot) {
+		const card = parseCard(cardRoot);
+		ret.push(card);
+	}
+
+	return ret;
+}
+
 export async function scrapCards(): Promise<Card[]> {
 	const allCards: Card[] = [];
 
 	// Fetch and parse card STCs
 	const stcHtmlLists = await fetchCardData(seriesPrefix.stc, 21);
-	for (const listHtml of stcHtmlLists) {
-		const cardListRoot = parse(listHtml);
-		const cards = cardListRoot.querySelectorAll('.modalCol');
-		for (const card of cards) {
-			allCards.push(parseCard(card));
-		}
+	for (const cardListHtml of stcHtmlLists) {
+		allCards.push(...parseCardList(cardListHtml));
 	}
 
 	// Fetch and parse card sets
 	const setHtmlList = await fetchCardData(seriesPrefix.set, 10);
-	for (const listHtml of setHtmlList) {
-		const cardListRoot = parse(listHtml);
-		const cards = cardListRoot.querySelectorAll('.modalCol');
-		for (const card of cards) {
-			allCards.push(parseCard(card));
-		}
+	for (const cardListHtml of setHtmlList) {
+		allCards.push(...parseCardList(cardListHtml));
 	}
 
 	// Fetch and parse card EB
 	const ebHtmlList = await fetchCardData(seriesPrefix.eb, 1);
-	for (const listHtml of ebHtmlList) {
-		const cardListRoot = parse(listHtml);
-		const cards = cardListRoot.querySelectorAll('.modalCol');
-		for (const card of cards) {
-			allCards.push(parseCard(card));
-		}
+	for (const cardListHtml of ebHtmlList) {
+		allCards.push(...parseCardList(cardListHtml));
 	}
 
 	// Fetch and parse card PRB
 	const prbHtmlList = await fetchCardData(seriesPrefix.prb, 1);
-	for (const listHtml of prbHtmlList) {
-		const cardListRoot = parse(listHtml);
-		const cards = cardListRoot.querySelectorAll('.modalCol');
-		for (const card of cards) {
-			allCards.push(parseCard(card));
-		}
+	for (const cardListHtml of prbHtmlList) {
+		allCards.push(...parseCardList(cardListHtml));
 	}
 
 	// Fetch and parse card PC
 	const pcHtmlList = await fetchCardData(seriesPrefix.pc, 1);
-	for (const listHtml of pcHtmlList) {
-		const cardListRoot = parse(listHtml);
-		const cards = cardListRoot.querySelectorAll('.modalCol');
-		for (const card of cards) {
-			allCards.push(parseCard(card));
-		}
+	for (const cardListHtml of pcHtmlList) {
+		allCards.push(...parseCardList(cardListHtml));
 	}
 
 	return allCards;
@@ -148,6 +144,8 @@ export async function scrapCards(): Promise<Card[]> {
 
 export async function uploadCards(cards: Card[]) {
 	for (const c of cards) {
+		// Check if the card already exists in the database
+		// If it does, skip the insertion
 		try {
 			const existingCard = await db
 				.select()
@@ -164,6 +162,7 @@ export async function uploadCards(cards: Card[]) {
 			continue;
 		}
 
+		// Insert cards into the database
 		try {
 			await db.insert(cardsTable).values(c);
 			console.log(`Inserted card: ${c.id}`);
@@ -172,6 +171,7 @@ export async function uploadCards(cards: Card[]) {
 			return false;
 		}
 	}
+
 	console.log('All cards inserted successfully');
 	return true;
 }
