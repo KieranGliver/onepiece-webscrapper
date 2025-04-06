@@ -1,10 +1,10 @@
 import { eq } from 'drizzle-orm';
+import type { drizzle } from 'drizzle-orm/neon-http';
 import { type HTMLElement, parse } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { deckCardsTable, decksTable } from './db/schema';
 import { type Deck, metaUrl } from './types';
 import { fetchText } from './utils';
-import { drizzle } from 'drizzle-orm/neon-http';
 
 function parseDeckList(deck: HTMLElement): Deck {
 	const deckObj = {} as Deck;
@@ -65,7 +65,10 @@ export async function scrapDecks() {
 	return allDecks;
 }
 
-export async function uploadDecks(decks: Deck[], db: ReturnType<typeof drizzle>) {
+export async function uploadDecks(
+	decks: Deck[],
+	db: ReturnType<typeof drizzle>,
+) {
 	for (const deck of decks) {
 		const deckId = uuidv4();
 
