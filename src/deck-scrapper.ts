@@ -1,61 +1,26 @@
 import { eq } from 'drizzle-orm';
-import fetch from 'node-fetch';
+import type { drizzle } from 'drizzle-orm/neon-http';
 import { type HTMLElement, parse } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from './db/connection';
 import { deckCardsTable, decksTable } from './db/schema';
+import { type Deck, metaUrl } from './types';
+import { fetchText } from './utils';
 
-enum metaUrl {
-	OP01 = 'https://onepiecetopdecks.com/deck-list/english-format-op1-and-st1to4-meta-decks/',
-	OP02 = 'https://onepiecetopdecks.com/deck-list/en-format-op02-paramount-war-decklist/',
-	OP03 = 'https://onepiecetopdecks.com/deck-list/en-format-op03-mighty-enemy-decklist/',
-	OP04 = 'https://onepiecetopdecks.com/deck-list/en-format-op04-kingdom-of-intrigue-decklist/',
-	OP05 = 'https://onepiecetopdecks.com/deck-list/en-format-op05-awakening-of-the-new-era/',
-	OP06 = 'https://onepiecetopdecks.com/deck-list/en-format-op-06-wings-of-the-captain-decks/',
-	OP07 = 'https://onepiecetopdecks.com/deck-list/english-op-07-500-years-into-the-future-decks/',
-	OP08 = 'https://onepiecetopdecks.com/deck-list/english-op-08-two-legends-decks/',
-	OP09 = 'https://onepiecetopdecks.com/deck-list/english-op-09-the-new-emperor-decks/',
-	OP10 = 'https://onepiecetopdecks.com/deck-list/english-op-10-the-royal-bloodline-decks/',
-}
+function parseDeckList(deck: HTMLElement): Deck {
+	const deckObj = {} as Deck;
 
-interface cardQuantity {
-	id: string;
-	quantity: number;
-}
+	deckObj.name = deck.querySelector('td.column-4')?.innerText || '';
 
-export class Deck {
-	leaderCardId = '';
-	name = '';
-	description = '';
-	cards: cardQuantity[] = [];
+	deckObj.description = `created ${deck.querySelector('td.column-6')?.innerText || ''} by ${deck.querySelector('td.column-8')?.innerText || ''}`;
 
-	toString(): string {
-		return `Deck { leaderCardId: ${this.leaderCardId}, name: ${this.name}, description: ${this.description} }`;
-	}
-}
-
-async function fetchDeckData(url: metaUrl): Promise<string> {
-	const res = await fetch(url);
-	if (!res.ok) {
-		throw new Error(`HTTP error fetching deck data: ${res.status}`);
-	}
-	return await res.text();
-}
-
-function parseDeckList(deckList: HTMLElement): Deck {
-	const deckObj = new Deck();
-
-	deckObj.name = deckList.querySelector('td.column-4')?.innerText || '';
-
-	deckObj.description = `created ${deckList.querySelector('td.column-6')?.innerText || ''} by ${deckList.querySelector('td.column-8')?.innerText || ''}`;
-
-	const deckData = deckList.querySelector('td.column-1')?.innerText || '';
+	const deckData = deck.querySelector('td.column-1')?.innerText || '';
 
 	if (deckData) {
 		// Deckdata is in format: 1nOP01-001a(quantity)n(cardId)a... and so on
 		const cardEntries = deckData.split('a');
 
 		const leaderCardEntry = cardEntries.shift();
+
 		if (leaderCardEntry) {
 			const leaderQuantity = Number.parseInt(leaderCardEntry[0], 10);
 			const leaderCardId = leaderCardEntry.slice(-8);
@@ -80,14 +45,13 @@ export async function scrapDecks() {
 	const allDecks: Deck[] = [];
 
 	for (const url of Object.values(metaUrl)) {
-		const deckListHtml = await fetchDeckData(url);
+		const deckListHtml = await fetchText(url);
 		const deckListRoot = parse(deckListHtml);
-		const deckListTable = deckListRoot.querySelector(
-			'tbody.row-hover',
-		);
+		const deckListTable = deckListRoot.querySelector('tbody.row-hover');
 
 		if (!deckListTable) {
-			throw new Error('Deck list table not found for ' + url);
+			console.warn(`No deck list table found for URL: ${url}. Skipping...`);
+			continue;
 		}
 
 		const deckList = deckListTable.querySelectorAll('tr');
@@ -101,10 +65,15 @@ export async function scrapDecks() {
 	return allDecks;
 }
 
-export async function uploadDecks(decks: Deck[]) {
+export async function uploadDecks(
+	decks: Deck[],
+	db: ReturnType<typeof drizzle>,
+) {
 	for (const deck of decks) {
 		const deckId = uuidv4();
+
 		try {
+			// Insert deck details into the decks table
 			await db.insert(decksTable).values({
 				id: deckId,
 				leaderCardId: deck.leaderCardId,
@@ -112,6 +81,7 @@ export async function uploadDecks(decks: Deck[]) {
 				description: deck.description || null,
 			});
 
+			// Insert cards into the deckCards table
 			for (const card of deck.cards) {
 				await db.insert(deckCardsTable).values({
 					deckId: deckId,
@@ -119,12 +89,14 @@ export async function uploadDecks(decks: Deck[]) {
 					quantity: card.quantity,
 				});
 			}
+
 			console.log(`Inserted deck: ${deck.name}`);
 		} catch (error) {
 			console.error(
 				`Error uploading deck: ${deck.name} ${deck.description}`,
 				error,
 			);
+
 			try {
 				await db.delete(decksTable).where(eq(decksTable.id, deckId));
 				console.log(`Deleted deck: ${deck.name}`);
