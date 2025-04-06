@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm';
 import { type HTMLElement, parse } from 'node-html-parser';
-import { db } from './db/connection';
 import { cardsTable } from './db/schema';
 import { type Card, seriesPrefix } from './types';
 import { fetchText } from './utils';
+import { drizzle } from 'drizzle-orm/neon-http';
 
 export async function fetchCardData(
 	prefix: seriesPrefix,
@@ -157,7 +157,7 @@ export async function scrapCards(): Promise<Card[]> {
 	return allCards;
 }
 
-export async function uploadCards(cards: Card[]) {
+export async function uploadCards(cards: Card[], db: ReturnType<typeof drizzle>) {
 	for (const c of cards) {
 		// Check if the card already exists in the database
 		// If it does, skip the insertion
