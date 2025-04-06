@@ -12,23 +12,32 @@ export async function fetchCardData(
 ): Promise<string[]> {
 	const results: string[] = [];
 
-	// Validate the range depending on the prefix given
+	// Validate the params
+	if (!prefix) {
+		console.warn('Prefix is required');
+		return results;
+	}
+	if (range === undefined || isNaN(range)) {
+		console.warn('Range is required');
+		return results;
+	}
+	// Validate the range based on prefix
 	if (range < 1) {
-		console.error('Range must be greater than 0');
+		console.warn('Range must be greater than 0');
 		return results;
 	}
 	if (prefix === seriesPrefix.stc) {
 		if (range > 21) {
-			console.error('Range must be less than 21 for stc');
+			console.warn('Range must be less than 21 for stc');
 			return results;
 		}
 	} else if (prefix === seriesPrefix.set) {
-		if (range > 21) {
-			console.error('Range must be less than 10 for set');
+		if (range > 10) {
+			console.warn('Range must be less than 10 for set');
 			return results;
 		}
 	} else if (range > 1) {
-		console.error('Range must be 1 for eb, prb and pc');
+		console.warn('Range must be 1 for eb, prb and pc');
 		return results;
 	}
 
@@ -41,7 +50,13 @@ export async function fetchCardData(
 
 		try {
 			const cardListHtml = await fetchFunc(url);
-			results.push(cardListHtml);
+			if (cardListHtml) {
+				results.push(cardListHtml);
+			} else if (cardListHtml === '') {
+				console.warn(`No data found for ${prefix}${paddedNumber}`);
+			} else {
+				console.warn(`Unexpected data format for ${prefix}${paddedNumber}`);
+			}
 		} catch (error) {
 			console.error(
 				`Error fetching card list for ${prefix}${paddedNumber}:`,
