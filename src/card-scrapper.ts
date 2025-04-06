@@ -17,7 +17,7 @@ export async function fetchCardData(
 		console.warn('Prefix is required');
 		return results;
 	}
-	if (range === undefined || isNaN(range)) {
+	if (range === undefined || Number.isNaN(range)) {
 		console.warn('Range is required');
 		return results;
 	}

@@ -1,12 +1,12 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchCardData } from '../src/card-scrapper';
 import { seriesPrefix } from '../src/types';
 
 const warnSpy = vi.spyOn(console, 'warn');
 const errorSpy = vi.spyOn(console, 'error');
-const fetchMock = vi.fn()
+const fetchMock = vi.fn();
 
-fetchMock.mockImplementation((url:string) => url.slice(-6))
+fetchMock.mockImplementation((url: string) => url.slice(-6));
 
 beforeEach(() => {
 	warnSpy.mockClear();
@@ -16,7 +16,7 @@ beforeEach(() => {
 
 describe('Invalid Inputs', () => {
 	it('Should handle empty prefix gracefully', async () => {
-		const prefix = NaN as unknown as seriesPrefix;
+		const prefix = Number.NaN as unknown as seriesPrefix;
 		const range = 1;
 		const result = await fetchCardData(prefix, range, fetchMock);
 		expect(fetchMock.mock.calls.length).toBe(0);
@@ -25,7 +25,7 @@ describe('Invalid Inputs', () => {
 	});
 	it('Should handle invalid range gracefully', async () => {
 		const prefix = seriesPrefix.stc;
-		const range = NaN as unknown as number;
+		const range = Number.NaN as unknown as number;
 		const result = await fetchCardData(prefix, range, fetchMock);
 		expect(fetchMock.mock.calls.length).toBe(0);
 		expect(warnSpy).toHaveBeenCalledWith('Range is required');
@@ -77,7 +77,9 @@ describe('Valid Inputs', () => {
 		const result = await fetchCardData(prefix, range, fetchMock);
 
 		expect(fetchMock.mock.calls.length).toBe(1);
-		expect(fetchMock.mock.calls[0]).toStrictEqual(['https://en.onepiece-cardgame.com/cardlist/?series=569001'])
+		expect(fetchMock.mock.calls[0]).toStrictEqual([
+			'https://en.onepiece-cardgame.com/cardlist/?series=569001',
+		]);
 		expect(result).toStrictEqual(['569001']);
 	});
 	it('Should call fetch 10 times', async () => {
@@ -88,16 +90,16 @@ describe('Valid Inputs', () => {
 
 		expect(fetchMock.mock.calls.length).toBe(10);
 		expect(result).toStrictEqual([
-			'569001', 
-			'569002', 
-			'569003', 
+			'569001',
+			'569002',
+			'569003',
 			'569004',
 			'569005',
 			'569006',
 			'569007',
 			'569008',
 			'569009',
-			'569010', 
+			'569010',
 		]);
 	});
 });
@@ -153,7 +155,7 @@ describe('Invalid fetch responses', () => {
 		expect(warnSpy).toHaveBeenCalledWith('No data found for 569001');
 		expect(result).toStrictEqual([]);
 	});
-	it ('Should handle fetch error gracefully', async () => {
+	it('Should handle fetch error gracefully', async () => {
 		const prefix = seriesPrefix.stc;
 		const range = 1;
 
