@@ -1,14 +1,14 @@
 {
-	"name": "thunderclap",
+	"name": "onepiece-webscrapper",
 	"version": "1.0.0",
-	"description": "Basic setup for a typescript project",
-	"homepage": "https://github.com/KieranGliver/Thunderclap#readme",
+	"description": "A webscrapper for the One Piece card game",
+	"homepage": "https://github.com/KieranGliver/onepiece-webscrapper#readme",
 	"bugs": {
-		"url": "https://github.com/KieranGliver/Thunderclap/issues"
+		"url": "https://github.com/KieranGliver/onepiece-webscrapper/issues"
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/KieranGliver/Thunderclap.git"
+		"url": "git+https://github.com/KieranGliver/onepiece-webscrapper.git"
 	},
 	"license": "ISC",
 	"author": "",
